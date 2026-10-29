@@ -1,0 +1,300 @@
+{
+  "name": "AI Image Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"grok-imagine/text-to-image\",\n  \"input\": {\n    \"prompt\": \"{{ $json.prompt }}\",\n    \"aspect_ratio\": \"3:2\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "eaaba48e-d1f6-4b41-b3db-4a1f6f91f13c",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $json.data.taskId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('On form submission').item.json.api_key }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        0
+      ],
+      "id": "998ef355-afa8-48a2-bf8b-078fdefc229a",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3dd917d0-e468-40c9-a7d5-768983d53a76",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "9e5704a3-9c55-4b44-8152-7dd1e1d72eef",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil semua item dari node sebelumnya\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // Ambil resultJson (bisa berupa string atau object)\n  let resultJson = item.json.data?.resultJson;\n  \n  // Jika masih string, parse dulu\n  if (typeof resultJson === 'string') {\n    try {\n      resultJson = JSON.parse(resultJson);\n    } catch (e) {\n      continue; // skip jika parsing gagal\n    }\n  }\n  \n  // Ekstrak array resultUrls\n  const urls = resultJson?.resultUrls || [];\n  \n  // Filter URL yang valid\n  const validUrls = urls.filter(url => url && url.trim() !== '');\n  \n  // Buat output untuk setiap URL\n  for (let i = 0; i < validUrls.length; i++) {\n    results.push({\n      json: {\n        url: validUrls[i],\n        index: i\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -16
+      ],
+      "id": "531ffe55-c966-4330-8532-968c200c8a7a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "formTitle": "AI Image Generator",
+        "formDescription": "Masukkan prompt untuk membuat gambar",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "prompt"
+            },
+            {
+              "fieldLabel": "api_key"
+            },
+            {
+              "fieldLabel": "task_type"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        32,
+        0
+      ],
+      "id": "e9010569-fd8c-424e-b4bc-a140dded890f",
+      "name": "On form submission",
+      "webhookId": "2eae5e51-4625-4515-8e1a-078caec29319"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        0
+      ],
+      "id": "72fd71cb-26ae-4081-ad81-0045187a6822",
+      "name": "Wait",
+      "webhookId": "9782250f-26ef-4737-b0dd-3bfb7b1301de"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1264,
+        -16
+      ],
+      "id": "4f6ab51d-d786-4628-8bf5-188a147d04fb",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1424,
+        -16
+      ],
+      "id": "2ea3b5c9-8bc3-4fbd-b8c7-c9aa6be45016",
+      "name": "Send a photo message",
+      "webhookId": "0bbbe53c-487d-4af3-99a7-90d06edd9f0a",
+      "credentials": {
+        "telegramApi": {
+          "id": "cRYTKudJmS22m6m3",
+          "name": "Telegram account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Send a photo message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0282c14c-fb06-4f29-8901-835bf9b955c9",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "2ONbf7uz8oVk51yW",
+  "tags": []
+}

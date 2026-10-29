@@ -1,0 +1,398 @@
+{
+  "name": "Email Expense Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        592
+      ],
+      "id": "38792511-7bcc-41c2-8db1-d21eae2b36fa",
+      "name": "Email Trigger (IMAP)",
+      "credentials": {
+        "imap": {
+          "id": "SHz9zWLuGnh8PyMh",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "715fe8b8-2802-42a0-a075-e7809f3cd9d5",
+              "name": "Tanggal",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "c32debed-c42e-484f-b210-0f0ab1735b00",
+              "name": "Merchant",
+              "value": "Grab",
+              "type": "string"
+            },
+            {
+              "id": "92f982a4-d67b-4474-b94e-a16a530231f8",
+              "name": "Nominal",
+              "value": "={{ Number($json.textPlain.match(/Total.*?([\\d\\.]+)/s)?.[1]?.replace(/\\./g, '') || 0) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        784,
+        592
+      ],
+      "id": "4952dac2-0f59-4dc8-ae6f-27a171f50ada",
+      "name": "Grab"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "829165e3-c440-4e47-b1bb-5acae0b51363",
+              "name": "Tanggal",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "fe78cd6c-34e8-4041-bd49-901d763ff0d9",
+              "name": "Merchant",
+              "value": "IDCloudHost",
+              "type": "string"
+            },
+            {
+              "id": "fa275c4c-412c-44c9-8972-767bf3c15944",
+              "name": "Nominal",
+              "value": "={{ Number($json.textPlain.match(/Total.*?([\\d\\.]+)/s)?.[1]?.replace(/\\./g, '') || 0) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        784,
+        416
+      ],
+      "id": "3bc6f0b0-a79f-435e-a411-d3efe51c2859",
+      "name": "IDCloudHost"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ad636588-bd3c-4e6c-a070-14a739053cf8",
+              "name": "Tanggal",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "65a3ca89-9787-4a90-8a42-669e4f9f315c",
+              "name": "Merchant",
+              "value": "Tokopedia",
+              "type": "string"
+            },
+            {
+              "id": "8266c271-0ec6-44c5-b3c5-a32c17f9f9f7",
+              "name": "Nominal",
+              "value": "={{ Number($json.textPlain.match(/Harga\\s*(?:Rp)?\\s*([\\d\\.]+)/)?.[1]?.replace(/\\./g, '') || 0) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        784,
+        768
+      ],
+      "id": "14c1ba8c-036e-4951-84a2-73a8f08a1cdc",
+      "name": "Tokopedia"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        576
+      ],
+      "id": "090d4bfb-487f-4fe3-8fab-8e9e5354622a",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.subject }}",
+                    "rightValue": "IDCloudhost",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "d4064e8c-3291-4b0b-aa99-881a6c84b22a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IDCloudHost"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c8844c70-54c3-48af-ae10-6e80f8aa0cdf",
+                    "leftValue": "={{ $json.subject }}",
+                    "rightValue": "Grab",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Grab"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bba409ed-c6df-4074-8b20-317814fb2c08",
+                    "leftValue": "={{ $json.subject }}",
+                    "rightValue": "Tokopedia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tokopedia"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        512,
+        576
+      ],
+      "id": "63108076-bbf2-41de-a3ac-840c462431cd",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Tanggal": "={{ $json.Tanggal }}",
+            "Jumlah": "={{ $json.Nominal }}",
+            "Produk": "={{ $json.Merchant }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Tanggal",
+              "displayName": "Tanggal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Jumlah",
+              "displayName": "Jumlah",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produk",
+              "displayName": "Produk",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        592
+      ],
+      "id": "7710daad-5a4b-4419-9d98-cef318b1703c",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "p1Z251sLffVAS9TJ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IDCloudHost": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Tokopedia": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "IDCloudHost",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Grab",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tokopedia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b636b470-1d18-4a3c-826a-51077fc02ad4",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "R1DRYWo6BHAT6wHt",
+  "tags": []
+}

@@ -1,0 +1,381 @@
+{
+  "name": "Best Time to Post Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "d861aaa6-aa43-4505-b959-7f9708080934",
+      "name": "Send a text message",
+      "webhookId": "073bb1f7-df45-4ac7-8950-43e69e47b1a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "cRYTKudJmS22m6m3",
+          "name": "Telegram account 3"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "981b4ea1-cc2c-4156-8a0f-ae70d56b732c",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_1",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Data Posting",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID_1/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7937044c-8ef9-45e7-b077-fd22eaf9a774",
+      "name": "Baca Data Posting",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "p1Z251sLffVAS9TJ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil semua data dari Google Sheets\nconst items = $input.all();\n\nconsole.log('Total items:', items.length);\n\n// Validasi data\nif (!items || items.length === 0) {\n  throw new Error('Tidak ada data yang dibaca dari Google Sheets!');\n}\n\n// Log sample data untuk debugging\nconsole.log('Sample first item:', JSON.stringify(items[0].json));\n\n// Object untuk menyimpan data per jam\nconst hourlyData = {};\n\n// Counter untuk tracking\nlet processedCount = 0;\nlet skippedCount = 0;\n\n// Proses setiap row data\nitems.forEach((item, index) => {\n  try {\n    // Get data dengan berbagai kemungkinan nama kolom\n    const rawData = item.json;\n    \n    // Coba berbagai nama kolom yang mungkin\n    const hour = rawData['Jam Posting'] || rawData['jam posting'] || rawData['Jam'] || rawData['jam'];\n    const likes = parseInt(rawData['Likes'] || rawData['likes'] || 0);\n    const comments = parseInt(rawData['Comments'] || rawData['comments'] || 0);\n    const shares = parseInt(rawData['Shares'] || rawData['shares'] || 0);\n    const platform = rawData['Platform'] || rawData['platform'] || 'Unknown';\n    \n    // Skip jika jam tidak valid atau undefined\n    if (hour === undefined || hour === null || hour === '') {\n      console.log(`Skipping row ${index + 1}: hour is undefined`);\n      skippedCount++;\n      return;\n    }\n    \n    // Convert hour ke number jika string\n    const hourNum = typeof hour === 'number' ? hour : parseInt(hour);\n    \n    // Validasi hour range (0-23)\n    if (isNaN(hourNum) || hourNum < 0 || hourNum > 23) {\n      console.log(`Skipping row ${index + 1}: invalid hour ${hour}`);\n      skippedCount++;\n      return;\n    }\n    \n    // Hitung total engagement (bobot: likes x1, comments x2, shares x3)\n    const engagement = likes + (comments * 2) + (shares * 3);\n    \n    // Initialize data untuk jam ini jika belum ada\n    if (!hourlyData[hourNum]) {\n      hourlyData[hourNum] = {\n        hour: hourNum,\n        totalEngagement: 0,\n        count: 0,\n        totalLikes: 0,\n        totalComments: 0,\n        totalShares: 0,\n        platforms: {}\n      };\n    }\n    \n    // Akumulasi data\n    hourlyData[hourNum].totalEngagement += engagement;\n    hourlyData[hourNum].count += 1;\n    hourlyData[hourNum].totalLikes += likes;\n    hourlyData[hourNum].totalComments += comments;\n    hourlyData[hourNum].totalShares += shares;\n    \n    // Track platform distribution\n    if (!hourlyData[hourNum].platforms[platform]) {\n      hourlyData[hourNum].platforms[platform] = 0;\n    }\n    hourlyData[hourNum].platforms[platform] += 1;\n    \n    processedCount++;\n    \n  } catch (error) {\n    console.error(`Error processing row ${index + 1}:`, error.message);\n    skippedCount++;\n  }\n});\n\nconsole.log(`Processed: ${processedCount}, Skipped: ${skippedCount}`);\n\n// Validasi hasil\nif (Object.keys(hourlyData).length === 0) {\n  throw new Error(`Tidak ada data valid yang bisa diproses! Processed: ${processedCount}, Skipped: ${skippedCount}`);\n}\n\n// Hitung rata-rata dan buat array\nconst results = Object.values(hourlyData).map(data => {\n  const mostUsedPlatform = Object.keys(data.platforms).reduce((a, b) => \n    data.platforms[a] > data.platforms[b] ? a : b\n  );\n  \n  return {\n    jam: `${String(data.hour).padStart(2, '0')}:00`,\n    avgEngagement: Math.round(data.totalEngagement / data.count),\n    jumlahPost: data.count,\n    avgLikes: Math.round(data.totalLikes / data.count),\n    avgComments: Math.round(data.totalComments / data.count),\n    avgShares: Math.round(data.totalShares / data.count),\n    platformTerbanyak: mostUsedPlatform,\n    engagementScore: Math.round((data.totalEngagement / data.count) * 100) / 100\n  };\n});\n\n// Sort berdasarkan engagement tertinggi\nresults.sort((a, b) => b.avgEngagement - a.avgEngagement);\n\n// Ambil top 10 jam terbaik\nconst top10 = results.slice(0, 10);\n\n// Tambahkan ranking\nconst rankedResults = top10.map((item, index) => ({\n  ranking: index + 1,\n  ...item,\n  rekomendasi: index < 3 ? '⭐ SANGAT DIREKOMENDASIKAN' : index < 5 ? '✅ DIREKOMENDASIKAN' : '👍 CUKUP BAIK'\n}));\n\n// Tambahkan timestamp analisis\nconst analysisDate = new Date().toLocaleString('id-ID', {\n  timeZone: 'Asia/Jakarta',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit'\n});\n\nconst finalResults = rankedResults.map(item => ({\n  ...item,\n  tanggalAnalisis: analysisDate,\n  totalDataDianalisis: processedCount\n}));\n\nconsole.log('Final results count:', finalResults.length);\n\nreturn finalResults.map(item => ({ json: item }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "b4fbf869-479a-4c79-90d2-f94355befcee",
+      "name": "Analisis Waktu Terbaik"
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_2",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID_2/edit#gid=0"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "8a5df221-11a9-4998-88d8-b50abdbf95e0",
+      "name": "Hapus Hasil Lama",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "p1Z251sLffVAS9TJ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_2",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID_2/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ranking": "={{ $json.ranking }}",
+            "jam": "={{ $json.jam }}",
+            "avgEngagement": "={{ $json.avgEngagement }}",
+            "jumlahPost": "={{ $json.jumlahPost }}",
+            "avgLikes": "={{ $json.avgLikes }}",
+            "avgComments": "={{ $json.avgComments }}",
+            "avgShares": "={{ $json.avgShares }}",
+            "platformTerbanyak": "={{ $json.platformTerbanyak }}",
+            "engagementScore": "={{ $json.engagementScore }}",
+            "rekomendasi": "={{ $json.rekomendasi }}",
+            "tanggalAnalisis": "={{ $json.tanggalAnalisis }}",
+            "totalDataDianalisis": "={{ $json.totalDataDianalisis }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ranking",
+              "displayName": "ranking",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jam",
+              "displayName": "jam",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "avgEngagement",
+              "displayName": "avgEngagement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahPost",
+              "displayName": "jumlahPost",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "avgLikes",
+              "displayName": "avgLikes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "avgComments",
+              "displayName": "avgComments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "avgShares",
+              "displayName": "avgShares",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "platformTerbanyak",
+              "displayName": "platformTerbanyak",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "engagementScore",
+              "displayName": "engagementScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rekomendasi",
+              "displayName": "rekomendasi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tanggalAnalisis",
+              "displayName": "tanggalAnalisis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "totalDataDianalisis",
+              "displayName": "totalDataDianalisis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        0
+      ],
+      "id": "9680becd-c005-40b1-92a7-c6a81078ca2d",
+      "name": "Tulis Hasil Analisis",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "p1Z251sLffVAS9TJ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil hasil analisis dari input sebelumnya\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{ json: { message: '❌ Tidak ada data untuk dikirim' } }];\n}\n\n// Ambil top 5 jam terbaik\nconst top5 = items.slice(0, 5);\nconst totalData = items[0].json.totalDataDianalisis || 'N/A';\nconst tanggalAnalisis = items[0].json.tanggalAnalisis || new Date().toLocaleString('id-ID');\n\n// Format pesan Telegram dengan emoji dan formatting\nlet message = `📊 *HASIL ANALISIS WAKTU POSTING TERBAIK*\\n`;\nmessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n\\n`;\nmessage += `🏆 *TOP 5 JAM TERBAIK:*\\n\\n`;\n\ntop5.forEach((item, index) => {\n  const data = item.json;\n  const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;\n  \n  message += `${medal} *JAM ${data.jam}*\\n`;\n  message += `   📈 Avg Engagement: *${data.avgEngagement}*\\n`;\n  message += `   ❤️ Avg Likes: ${data.avgLikes}\\n`;\n  message += `   💬 Avg Comments: ${data.avgComments}\\n`;\n  message += `   🔄 Avg Shares: ${data.avgShares}\\n`;\n  message += `   📱 Platform: ${data.platformTerbanyak}\\n`;\n  message += `   📊 Total Post: ${data.jumlahPost} post\\n`;\n  message += `   ${data.rekomendasi}\\n\\n`;\n});\n\nmessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n`;\nmessage += `💡 *REKOMENDASI:*\\n`;\nmessage += `Posting pada jam *${top5[0].json.jam}* memberikan engagement tertinggi dengan rata-rata *${top5[0].json.avgEngagement}* engagement!\\n\\n`;\n\nmessage += `📅 Analisis: ${tanggalAnalisis}\\n`;\nmessage += `📝 Total data: ${totalData} post\\n\\n`;\n\nmessage += `_Gunakan insight ini untuk optimasi strategi posting Anda!_ 🚀`;\n\nreturn [{ json: { \n  chatId: '',  // Akan diisi dari credential atau parameter\n  message: message,\n  parseMode: 'Markdown'\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "e3f8fac1-63d5-4403-8803-57f87cf406f3",
+      "name": "Format Pesan Telegram"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Baca Data Posting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Data Posting": {
+      "main": [
+        [
+          {
+            "node": "Analisis Waktu Terbaik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisis Waktu Terbaik": {
+      "main": [
+        [
+          {
+            "node": "Hapus Hasil Lama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hapus Hasil Lama": {
+      "main": [
+        [
+          {
+            "node": "Tulis Hasil Analisis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tulis Hasil Analisis": {
+      "main": [
+        [
+          {
+            "node": "Format Pesan Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pesan Telegram": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "91761363-d24f-46c7-a2b6-8f6c56557398",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "oRvAcF8Vxy52I95y",
+  "tags": []
+}

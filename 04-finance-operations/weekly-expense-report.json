@@ -1,0 +1,268 @@
+{
+  "name": "Weekly Expense Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        192
+      ],
+      "name": "Schedule Trigger",
+      "id": "e1666e8a-3bfc-44f7-bf2d-7932c6046f43"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        160,
+        192
+      ],
+      "name": "Ambil Data Pengeluaran",
+      "id": "ea9eda13-0e1d-499d-a877-fd72562bc791",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "p1Z251sLffVAS9TJ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst now = new Date();\nconst sevenDaysAgo = new Date();\nsevenDaysAgo.setDate(now.getDate() - 7);\n\n// Kumpulkan semua baris valid terlebih dahulu\nconst allRows = [];\n\nfor (const item of items) {\n  const row = item.json;\n  const rawDate = row['Tanggal'];\n  if (!rawDate) continue;\n  \n  let tgl;\n  if (String(rawDate).includes('/')) {\n    const parts = String(rawDate).split('/');\n    tgl = new Date(parts[2], parts[1] - 1, parts[0]);\n  } else {\n    tgl = new Date(rawDate);\n  }\n  \n  if (isNaN(tgl.getTime())) continue;\n  \n  allRows.push({ row, tgl });\n  \n  // Filter utama: 7 hari terakhir\n  if (tgl >= sevenDaysAgo && tgl <= now) {\n    results.push(row);\n  }\n}\n\n// Fallback: jika tidak ada data dalam 7 hari terakhir,\n// gunakan semua data agar jalur AI tetap bisa diuji\nconst finalResults = results.length > 0 ? results : allRows.map(r => r.row);\nconst isFallback = results.length === 0 && finalResults.length > 0;\n\nlet formattedText = '';\nfor (const row of finalResults) {\n  formattedText += `- Tanggal: ${row['Tanggal']}, Kategori: ${row['Kategori']}, Deskripsi: ${row['Deskripsi']}, Jumlah: Rp${row['Jumlah (IDR)']}\\n`;\n}\n\nreturn [{\n  json: {\n    hasExpenses: finalResults.length > 0,\n    totalItems: finalResults.length,\n    isFallback: isFallback,\n    formattedText: formattedText || 'Tidak ada transaksi.'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        192
+      ],
+      "name": "Filter 7 Hari & Format",
+      "id": "e18e3841-5267-4d03-93cd-830e6dc42d71"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasExpenses }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        192
+      ],
+      "name": "If Ada Data",
+      "id": "decdc00e-5d03-445c-9c57-610137d9f60d"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Anda adalah analis keuangan pribadi. Berikut adalah daftar pengeluaran saya selama 7 hari terakhir:\n\n{{ $json.formattedText }}\n\nTolong tulis ringkasan kebiasaan belanja saya minggu ini, lalu berikan SATU saran penghematan yang konkret dan bisa langsung saya terapkan.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        816,
+        80
+      ],
+      "name": "Analisis Pengeluaran",
+      "id": "cee4ca4c-1ff8-43c0-bfd9-4160a8f153d0"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        288
+      ],
+      "name": "Google Gemini Chat Model",
+      "id": "99f0b2dc-efba-4c43-ac17-c7308523c9e5",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GOVdqENfJcQi2c3R",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        80
+      ],
+      "name": "Kirim Hasil AI",
+      "id": "7cfaa487-2ae6-44c6-a4a5-b5e33cc34eb1",
+      "webhookId": "98788750-c93c-4ef5-862c-6e2c9503360c",
+      "credentials": {
+        "telegramApi": {
+          "id": "cRYTKudJmS22m6m3",
+          "name": "Telegram account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "📭 Tidak ditemukan log pengeluaran untuk 7 hari terakhir. Tidak ada analisis AI yang dibuat.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        448
+      ],
+      "name": "Pesan Nihil",
+      "id": "fe8321df-2566-4930-802d-d1ca8fef1469",
+      "webhookId": "66c461ae-4789-438b-99c4-f8c342814d14",
+      "credentials": {
+        "telegramApi": {
+          "id": "cRYTKudJmS22m6m3",
+          "name": "Telegram account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ambil Data Pengeluaran",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Data Pengeluaran": {
+      "main": [
+        [
+          {
+            "node": "Filter 7 Hari & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter 7 Hari & Format": {
+      "main": [
+        [
+          {
+            "node": "If Ada Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Ada Data": {
+      "main": [
+        [
+          {
+            "node": "Analisis Pengeluaran",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pesan Nihil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisis Pengeluaran": {
+      "main": [
+        [
+          {
+            "node": "Kirim Hasil AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analisis Pengeluaran",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "54b74e60-dafc-4e9d-9efc-b7e48672ad1e",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "EexLd4TByTY2o5or",
+  "tags": []
+}

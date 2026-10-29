@@ -1,0 +1,319 @@
+{
+  "name": "AI Phishing Triage",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        144
+      ],
+      "name": "Gmail Trigger",
+      "id": "f9e1b4ea-1400-4290-9682-7388d8802fd4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BXzVrTCLvwzGVv1h",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.from }}",
+                    "rightValue": "example-bank",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "178bc40b-522e-4de0-a859-0c34c709c18d"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Allowlist"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        144
+      ],
+      "name": "Cek Allowlist",
+      "id": "519d747f-b27f-4802-bdae-e05dcaa55c9e"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Anda adalah analis keamanan siber. Analisis teks email berikut untuk tanda-tanda phishing, berfokus pada urgensi palsu, tautan mencurigakan, permintaan info pribadi, atau peniruan identitas bank.\n\nBerikan skor bahaya dari 1 sampai 10.\nJawab dengan format: Skor: [angka] | Email: [pengirim] | Subjek: [subjek]\n\nEmail:\nFrom: {{ $('Gmail Trigger').item.json.From }}\nSubject: {{ $('Gmail Trigger').item.json.Subject }}\nBody: {{ $('Gmail Trigger').item.json.snippet }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        480,
+        224
+      ],
+      "name": "Analisa Phishing",
+      "id": "5c2f1090-88bf-4227-b8d1-03b7c1d0f618"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const text = item.json.text || item.json.output || item.json.response || '';\n  const match = String(text).match(/Skor:\\s*(\\d+)/i);\n  const skor = match ? parseInt(match[1]) : 0;\n  \n  results.push({\n    json: {\n      ...item.json,\n      skor_bahaya: skor\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        224
+      ],
+      "name": "Ekstrak Skor",
+      "id": "913e8963-0b02-4413-9623-a02ee45bbce1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skor_bahaya }}",
+              "rightValue": 6,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        224
+      ],
+      "name": "Cek Skor Bahaya",
+      "id": "011f85f1-1c61-442a-9755-b36d6ed2bdd7"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_203654307214459341"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        144
+      ],
+      "name": "Beri Label Phishing",
+      "id": "cebbadf8-c84b-490b-bed1-51db43ea9b86",
+      "webhookId": "67f7efb3-b49a-431e-a3bb-c653a5e8c1b0",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BXzVrTCLvwzGVv1h",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=⚠️ EMAIL MENCURIGAKAN TERDETEKSI\n\nSkor: {{ $json.skor_bahaya }}\nFrom: {{ $('Gmail Trigger').item.json.From }}\nSubject: {{ $('Gmail Trigger').item.json.Subject }}\n\nMohon tinjau manual email ini.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1168,
+        336
+      ],
+      "name": "Notifikasi Telegram",
+      "id": "159e89b2-5c99-471b-a327-5608aedee003",
+      "webhookId": "6a649ea3-b06f-41e0-b3f6-7da2e110d389",
+      "credentials": {
+        "telegramApi": {
+          "id": "cRYTKudJmS22m6m3",
+          "name": "Telegram account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=📧 Email dari Allowlist\n\nFrom: {{ $('Gmail Trigger').item.json.From }}\nSubject: {{ $('Gmail Trigger').item.json.Subject }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        512,
+        32
+      ],
+      "name": "Reminder Allowlist",
+      "id": "c12ecfc3-9371-41d6-a0c4-94a962949191",
+      "webhookId": "7605f068-96d6-4b74-a339-47f077ab8564",
+      "credentials": {
+        "telegramApi": {
+          "id": "cRYTKudJmS22m6m3",
+          "name": "Telegram account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        416
+      ],
+      "name": "Google Gemini Chat Model",
+      "id": "ce1555a9-c943-4544-b03a-4f38bc92626d",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GOVdqENfJcQi2c3R",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Cek Allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Allowlist": {
+      "main": [
+        [
+          {
+            "node": "Reminder Allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analisa Phishing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisa Phishing": {
+      "main": [
+        [
+          {
+            "node": "Ekstrak Skor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ekstrak Skor": {
+      "main": [
+        [
+          {
+            "node": "Cek Skor Bahaya",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Skor Bahaya": {
+      "main": [
+        [
+          {
+            "node": "Beri Label Phishing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notifikasi Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analisa Phishing",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5a392a36-b0ba-4d4b-8a39-5b95dc511d26",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "iPn9iJbEVxgYL7zm",
+  "tags": []
+}

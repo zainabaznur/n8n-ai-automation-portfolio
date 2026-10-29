@@ -1,0 +1,114 @@
+{
+  "name": "No-Code AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Halo! Saya asisten NF Academy. Ada yang bisa saya bantu terkait produk pelatihan kami? 😊",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9878ba53-2f4b-4844-95aa-526d2308feb3",
+      "name": "When chat message received",
+      "webhookId": "64966090-e2a0-464e-9500-bbff016fffe8"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "## Garis Besar\nAnda seorang spesialis pemasaran produk dari perusahaan NF Academy.\nTugas Anda membantu menjawab pertanyaan yang berkaitan dengan NF Academy\nsesuai dengan Dasar Pengetahuan Produk di bawah ini.\n\n# Dasar Pengetahuan Produk\nBerikut ini tabel dengan kolom dibatasi ; yaitu Nama Produk; Deskripsi Produk; Harga Produk.\n\n=== AI for Business; Pelatihan dasar penggunaan AI untuk bisnis; Rp2.000.000 ===\n=== Data Science; Pelatihan analisis data untuk pemula; Rp2.500.000 ===\n=== Digital Marketing; Pelatihan pemasaran digital; Rp1.500.000 ===\n=== UI/UX Design; Pelatihan desain antarmuka dan pengalaman pengguna; Rp2.200.000 ===\n=== Web Development; Pelatihan pembuatan website dari nol; Rp2.800.000 ===\n\n# Aturan\nAnda harus merespons dengan cara yang sederhana namun menarik.\nJika tidak ada informasi yang dapat diambil dari Dasar Pengetahuan Produk di atas,\njangan mengarang jawaban. Anda dapat jujur menjawab:\n\"Maaf, saya tidak memiliki informasi tersebut. Silakan lihat web https://nfacademy.id\"\n\n# Gaya\nGunakan bahasa Indonesia baku dan emoji secukupnya."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "3b9a9f7a-9541-4dc7-904e-31eea1a88e25",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        208
+      ],
+      "id": "5d2c14c2-2bdb-4ddb-b989-99c529efd2e2",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "obWvwJzIlhapIhJ2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        400,
+        288
+      ],
+      "id": "5dbfdcdb-777e-4b4f-a34c-3c7fe64bf57d",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d9796955-5295-4c06-a5d6-7c4040d0acac",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "8kY2wVBq2O22cILh",
+  "tags": []
+}

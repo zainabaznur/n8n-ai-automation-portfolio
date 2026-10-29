@@ -1,0 +1,108 @@
+{
+  "name": "Auto Email Responder",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Pendaftaran Kelas",
+        "formDescription": "Silakan isi data pendaftaran Anda di bawah ini",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nama",
+              "placeholder": "Tuliskan nama lengkap Anda"
+            },
+            {
+              "fieldLabel": "Email",
+              "placeholder": "contoh@email.com"
+            },
+            {
+              "fieldLabel": "Kelas",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "AI for Business"
+                  },
+                  {
+                    "option": "Data Science"
+                  },
+                  {
+                    "option": "DevOps Engineer"
+                  },
+                  {
+                    "option": "Digital Marketing"
+                  },
+                  {
+                    "option": "Fullstack Developer"
+                  },
+                  {
+                    "option": "Mobile Apps Developer"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f89bcca3-b4fb-4b4a-bded-bd26cf6e9c72",
+      "name": "On form submission",
+      "webhookId": "739afa2e-1d63-4b42-9c51-a89bc63187f5"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "=Konfirmasi Pendaftaran - {{ $json.Nama }}",
+        "message": "=<!DOCTYPE html> <html> <head>   <meta charset=\"UTF-8\"> </head> <body style=\"font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;\">   <div style=\"max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; padding: 30px;\">          <h1 style=\"color: #2c3e50;\">Halo {{ $json.Nama }}! 👋</h1>          <p style=\"color: #555;\">Terima kasih telah mendaftar. Berikut detail pendaftaran Anda:</p>          <table style=\"width: 100%; border-collapse: collapse; margin: 25px 0;\">       <tr style=\"background-color: #f9f9f9;\">         <td style=\"padding: 12px; border: 1px solid #ddd; font-weight: bold;\">Nama</td>         <td style=\"padding: 12px; border: 1px solid #ddd;\">{{ $json.Nama }}</td>       </tr>       <tr>         <td style=\"padding: 12px; border: 1px solid #ddd; font-weight: bold;\">Email</td>         <td style=\"padding: 12px; border: 1px solid #ddd;\">{{ $json.Email }}</td>       </tr>       <tr style=\"background-color: #f9f9f9;\">         <td style=\"padding: 12px; border: 1px solid #ddd; font-weight: bold;\">Kelas</td>         <td style=\"padding: 12px; border: 1px solid #ddd;\">{{ $json.Kelas }}</td>       </tr>     </table>          <p style=\"color: #555;\">Jika ada pertanyaan, silakan balas email ini.</p>          <p style=\"margin-top: 30px; color: #888;\">       Salam,<br>       <strong>Tim Pendaftaran</strong>     </p>        </div> </body> </html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0bda499a-774c-43f7-803e-9bf6346b7ce6",
+      "name": "Send a message",
+      "webhookId": "859d76f3-3c09-49f9-b83e-eb9e5da5569c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BXzVrTCLvwzGVv1h",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ac802385-4afe-4cf4-9806-e6d4df433a21",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "dYXIxntf1bcz7qVV",
+  "tags": []
+}
